@@ -1,4 +1,4 @@
-# flac-mp3-fast
+# flactomp3-fast
 Automated script that converts all flac files in a folder to mp3
 
 Ever get tired of manually uploading files one by one in some obscure "flac-to-mp3-converter" site, that also looks like it spawns popups until you start crying?

@@ -1,7 +1,7 @@
 #!/bin/bash
 #===============================================================================
-#          FILE:  test.sh
-#         USAGE:  ./test.sh <folderName>
+#          FILE:  flactomp3.sh
+#         USAGE:  ./flactomp3.sh <folderName>
 #
 #   DESCRIPTION: Finds all flac files in a specified folder and converts them to mp3
 #  REQUIREMENTS:  ffmpeg
@@ -12,53 +12,44 @@
 #just in case
 trap "exit" INT
 
+# Script name
 scriptName=$0
 
-echo "FLAC to mp3 Converter"
-
+# Usage function
 function usage {
     echo "usage: $scriptName <folder>"
-    echo "	<folder>: the folder in which the script will search for any FLAC files"
-    echo "	to convert to MP3"
+    echo "    <folder>: the folder in which the script will search for any FLAC files"
+    echo "              to convert to MP3"
     exit 1
 }
 
-# Checking for arguments 
-[ -z $1 ] && { usage; }
+# Check for arguments 
+[ -z "$1" ] && { usage; }
 
-# If directory doesn't exist, exit
-[ ! -d "$1" ] && echo "Directory $1 does not exist. Exiting..." && exit 1
+# Check if directory exists
+[ ! -d "$1" ] && echo "Directory $1 does not exist. Exiting..." >&2 && exit 1
 
-# If missing ffmpeg, exit
-[ ! -x "$(command -v ffmpeg)" ] && echo 'Error: ffmpeg is not installed. Exiting...' >&2 && exit 1
+# Check if ffmpeg is installed
+command -v ffmpeg >/dev/null 2>&1 || { echo >&2 "Error: ffmpeg is not installed. Exiting..."; exit 1; }
 
+# Directory containing FLAC files
 fullDir=$(readlink -f "$1")
 
-echo "Scanning folder "$fullDir" for FLAC files..."
-flacFiles=$(ls "$fullDir" | grep .flac | wc -l)
-[ $flacFiles -lt 1 ] && echo "Directory "$fullDir" has no FLAC files. Exiting..." && exit 1
+# Find all FLAC files
+flacFiles=("$fullDir"/*.flac)
+[ ${#flacFiles[@]} -eq 0 ] && echo "Directory $fullDir has no FLAC files. Exiting..." >&2 && exit 1
 
-echo "Found $flacFiles files"
+# Convert function
+convert_to_mp3() {
+    inFile="$1"
+    outFile="${inFile%.flac}.mp3"
+    ffmpeg -y -i "$inFile" -hide_banner -loglevel error -b:a 320k "$outFile"
+}
 
-counter=0
-pids=()
-for inFile in "$fullDir"/*.flac; do
-	let counter+=1
-	# ah, sed: the crazy person's regex
-	outFile=`echo "$inFile" | sed 's/\(.*\.\)flac/\1mp3/'`
- 	# force overwrite, no banner only log if something goes wrong
-	ffmpeg -y -i "$inFile" -hide_banner -loglevel error -b:a 320k "$outFile" &
-	pids+=($!)
-done
+export -f convert_to_mp3
 
-done=0
-total=${#pids[@]}
-echo "Waiting for ffmpeg to complete all processes ($done/$total done)"
+# Parallelize conversion
+echo "Converting FLAC files to MP3..."
+parallel -j $(nproc) convert_to_mp3 ::: "${flacFiles[@]}"
 
-for pid in ${pids[@]}; do
-	wait $pid
-	let done+=1
-	echo "Finished parsing $done/$total "
-done
-
-echo "All done!"
+echo "Conversion completed successfully."

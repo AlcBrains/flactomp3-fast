@@ -7,5 +7,11 @@ Fear not, friend! This script finds all flac files in a specified folder and con
 
 Feel free to fork if you wanna improve it.
 
+
+# Prerequisites
+
+- ffmpeg
+- parallel
+
 # USAGE
 ./flactomp3.sh \<folderName\>
